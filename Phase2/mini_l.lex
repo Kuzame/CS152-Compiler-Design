@@ -60,12 +60,13 @@ ID	[a-zA-Z_0-9]+
 "false"			{currPos += yyleng; return FALSE;}
 "return"		{currPos += yyleng; return RETURN;}
 {DIGIT} 		{currPos += yyleng; yylval.sval=yytext; return NUMBER;}
-({DIGIT}|_+){ID}	{printf("Error at line %d, column %d: identifier \"%s\" must begin with letter\n", currLine, currPos, yytext); exit(0); }
-{ID}_+			{printf("Error at line %d, column %d: identifier \"%s\" cannot end with underscore\n", currLine, currPos, yytext); exit(0); }
+({DIGIT}|_+){ID}	{printf("Error at line %d, column %d: identifier \"%s\" must begin with letter\n", currLine, currPos, yytext); exit(1); }
+{ID}_+			{printf("Error at line %d, column %d: identifier \"%s\" cannot end with underscore\n", currLine, currPos, yytext); exit(1); }
 {ID}			{currPos += yyleng; yylval.sval=yytext; return IDENT;}
 " "			{currPos += yyleng; }
 "\n"			{currLine++; currPos = 1;}
 "\t"			{currPos += yyleng; }
 
-. 				{printf("Error at line %d, column %d: unrecognized symbol \"%s\"\n", currLine, currPos, yytext); exit(0); }
+"="			{printf("Syntax error at line %d, column %d: \":=\" expected\n", currLine, currPos); exit(1);}
+. 				{printf("Error at line %d, column %d: unrecognized symbol \"%s\"\n", currLine, currPos, yytext); exit(1); }
 %%

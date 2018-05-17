@@ -41,6 +41,7 @@ declarations:	{printf("declarations -> epsilon\n");}
 
 declaration:	identifiers COLON INTEGER {printf("declaration -> identifiers COLON INTEGER\n");}
 		| identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER  {printf("declaration -> identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER\n");}
+		| error {printf("invalid declaration\n");exit(1);}
 		;
 
 identifiers:	ident COMMA identifiers {printf("identifiers -> ident COMMA identifiers\n");}
@@ -65,6 +66,7 @@ statement: 	var ASSIGN expression{printf("statement -> var ASSIGN expression\n")
 		| WRITE vars {printf("statement -> WRITE vars\n");}
 		| CONTINUE {printf("statement -> CONTINUE\n");}
 		| RETURN expression {printf("statement -> RETURN expression\n");}
+		| error {printf("invalid statement\n");exit(1);}
 		;
 vars:		{printf("vars -> epsilon\n");}
 		| var COMMA vars {printf("vars -> var COMMA vars\n");}
@@ -151,7 +153,7 @@ var:		ident {printf("var -> IDENT\n");}
 
 void yyerror(const char* s)
 {
-	printf("** Line %d, position %d: %s\n",currLine, currPos, s);
+	printf("Syntax error at line %d: ",currLine);
 }
 
 int main(int argc, char **argv) {
