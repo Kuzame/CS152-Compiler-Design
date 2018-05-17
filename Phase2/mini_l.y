@@ -12,6 +12,7 @@ FILE *yyin;
 char* sval;
 }
 
+%error-verbose
 %start begin
 %token L_PAREN R_PAREN L_SQUARE_BRACKET R_SQUARE_BRACKET BEGIN_PARAMS END_PARAMS BEGIN_LOCALS END_LOCALS BEGIN_BODY END_BODY IF ENDIF FUNCTION COLON SEMICOLON COMMA INTEGER ARRAY OF THEN ELSE WHILE DO BEGINLOOP ENDLOOP CONTINUE READ WRITE TRUE FALSE RETURN
 %token <sval> NUMBER
@@ -29,6 +30,7 @@ functions:	{printf("functions -> epsilon\n");}
 		;
 
 function:	FUNCTION ident SEMICOLON BEGIN_PARAMS declarations END_PARAMS BEGIN_LOCALS declarations END_LOCALS BEGIN_BODY statements END_BODY {printf("function -> FUNCTION IDENT SEMICOLON BEGIN_PARAMS declarations END_PARAMS BEGIN_LOCALS declarations END_LOCALS BEGIN_BODY statements\n");}
+		| error{yyerrok;yyclearin;}
 		;
 
 declarations:	{printf("declarations -> epsilon\n");}
@@ -41,7 +43,7 @@ declarations:	{printf("declarations -> epsilon\n");}
 
 declaration:	identifiers COLON INTEGER {printf("declaration -> identifiers COLON INTEGER\n");}
 		| identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER  {printf("declaration -> identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER\n");}
-		| error {printf("invalid declaration\n");exit(1);}
+		| error {yyerrok;yyclearin;}
 		;
 
 identifiers:	ident COMMA identifiers {printf("identifiers -> ident COMMA identifiers\n");}
@@ -66,7 +68,7 @@ statement: 	var ASSIGN expression{printf("statement -> var ASSIGN expression\n")
 		| WRITE vars {printf("statement -> WRITE vars\n");}
 		| CONTINUE {printf("statement -> CONTINUE\n");}
 		| RETURN expression {printf("statement -> RETURN expression\n");}
-		| error {printf("invalid statement\n");exit(1);}
+		| error {yyerrok;yyclearin;}
 		;
 vars:		{printf("vars -> epsilon\n");}
 		| var COMMA vars {printf("vars -> var COMMA vars\n");}
@@ -153,7 +155,7 @@ var:		ident {printf("var -> IDENT\n");}
 
 void yyerror(const char* s)
 {
-	printf("Syntax error at line %d: ",currLine);
+	printf("Syntax error at line %d: %s",currLine, s);
 }
 
 int main(int argc, char **argv) {
