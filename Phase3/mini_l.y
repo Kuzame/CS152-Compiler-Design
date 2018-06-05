@@ -6,6 +6,11 @@ int yylex(void);
 void yyerror(const char *s);
 extern int currLine, currPos;
 FILE *yyin;
+vector <string> varBank; //sym_table
+vector <string> varType; //sym_type
+vector <string> paramBank; //param_table
+vector <string statementBank; //stmnt_vctr
+bool inParam=false;
 %}
 
 %union{
@@ -29,8 +34,45 @@ functions:
 		| function functions 
 		;
 
-function:	FUNCTION ident SEMICOLON BEGIN_PARAMS declarations END_PARAMS BEGIN_LOCALS declarations END_LOCALS BEGIN_BODY statements END_BODY {printf("function -> FUNCTION IDENT SEMICOLON BEGIN_PARAMS declarations END_PARAMS BEGIN_LOCALS declarations END_LOCALS BEGIN_BODY statements\n");}
+function:	func_name SEMICOLON begin_params declarations end_params BEGIN_LOCALS declarations END_LOCALS BEGIN_BODY statements END_BODY 
+		{
+			int temp=0;
+			for(unsigned i=0;i<varBank.size();i++) {
+				if(varType=="INTEGER") {
+					printf(". %s\n", varBank[i]);
+				}
+				else {
+					printf(".[] %s, %s\n", varBank[i], varType[i]);
+				}
+			}
+			
+
+			while(!paramBank.empty()) {
+				printf("= %s, $%s\n", paramBank.front(), temp++);
+				paramBank.erase(paramBank.begin());
+			}
+
+			for(unsigned i=0;i<statementBank.size();i++) printf("%s\n", statementBank[i]);
+			printf("endfunc\n");
+			varBank.clear();
+			varType.clear();
+			paramBank.clear();
+			statementBank.clear();
+		}
 		| error{yyerrok;yyclearin;}
+		;
+
+func_name:	FUNCTION ident
+		{
+			varBank.push_back(*($2));
+			printf("func %s\n", $2);
+		}
+		;
+
+begin_params:	BEGIN_PARAMS {inParam=true;}
+		;
+
+end_params:	END_PARAMS {inParams=false;}
 		;
 
 declarations:	
