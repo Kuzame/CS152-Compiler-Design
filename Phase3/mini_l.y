@@ -6,10 +6,14 @@ int yylex(void);
 void yyerror(const char *s);
 extern int currLine, currPos;
 FILE *yyin;
-vector <string> varBank; //sym_table
-vector <string> varType; //sym_type
-vector <string> paramBank; //param_table
-vector <string statementBank; //stmnt_vctr
+vector <char*> varBank; //sym_table
+vector <char*> varType; //sym_type
+vector <char*> paramBank; //param_table
+vector <char*> statementBank; //stmnt_vctr
+vector <char*> tempBank; //op
+bool checkIntVar(char*);
+bool checkArrVar(char*);
+
 bool inParam=false;
 %}
 
@@ -83,27 +87,48 @@ declarations:
 /*----------------- Declaration ----------------- */
 
 
-declaration:	identifiers COLON INTEGER {}
-		| identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER  {printf("declaration -> identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER\n");}
+declaration:	identifiers COLON INTEGER {varType.push_back("INTEGER");}
+		| identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER  {varType.push_back(*($5));}
 		| error {yyerrok;yyclearin;}
 		;
 
-identifiers:	ident COMMA identifiers {printf("identifiers -> ident COMMA identifiers\n");}
-		| ident {printf("identifiers -> ident\n");}
+identifiers:	ident COMMA identifiers {varType.push_back("INTEGER");}
+		| ident {if(inParam) paramBank.push_back(*($1));}
 		;
 
-ident:		IDENT {printf("ident -> IDENT %s\n", $1);}
+ident:		IDENT 
+		{varBank.push_back(*($1));}
 		;
 /*------------------------------------------------ */
 
 /*----------------- Statement ----------------- */
-statements:	{printf("statements -> epsilon\n");}
-		| statement SEMICOLON statements {printf("statements -> statement SEMICOLON statements\n");}
+statements:	
+		| statement SEMICOLON statements
 		;
 
-statement: 	var ASSIGN expression{printf("statement -> var ASSIGN expression\n");}
-		| IF bool_exp THEN statements ENDIF {printf("statement -> IF bool_exp THEN statements ENDIF\n");}
-		| IF bool_exp THEN statements ELSE statements ENDIF {printf("statement -> IF bool_exp THEN statements ELSE statements ENDIF\n");}
+statement: 	IDENT ASSIGN expression 
+		{
+			if(!checkIntVar($1)) ;//exit(1);
+			statementBank.push_back("= "+*($1)+", "+tempBank.back());
+			tempBank.pop_back();
+		}
+		| IDENT L_SQUARE_BRACKET expression R_SQUARE_BRACKET
+		{
+			if(!checkArrVar($1)) ;//exit(1);
+			char* src = tempBank.back();
+			tempBank.pop_back();
+			char* index = tempBank.back();
+			tempBank.pop_back();
+			statementBank.push_back("[]= "+*($1)+", "+index+", "+src);
+		}
+		| if_statement statements ENDIF 
+		{
+			
+		}
+		| else_if_statement statements ENDIF 
+		{
+			
+		}
 		| WHILE bool_exp BEGINLOOP statements ENDLOOP {printf("statement -> WHILE bool_exp BEGINLOOP statements ENDLOOP\n");}
 		| DO BEGINLOOP statements ENDLOOP WHILE bool_exp {printf("statement -> DO BEGINLOOP statements ENDLOOP WHILE bool_exp\n");}
 		| READ vars {printf("statement -> READ vars\n");}
@@ -117,6 +142,12 @@ vars:		{printf("vars -> epsilon\n");}
 		| var {printf("vars -> var\n");}
 		;
 /*--------------------------------------------- */
+
+if_statement:	IF bool_exp THEN 
+		;
+
+else_if_statement:	if_statement statements ELSE
+		;
 
 /*----------------- Bool Expression ----------------- */
 bool_exp:	relation_and_exp {printf("bool_exp -> relation_and_exp\n");}
@@ -187,9 +218,8 @@ expressions:	expression {printf("expressions -> expression\n");}
 
 
 /*----------------- Var ----------------- */
-var:		ident {printf("var -> IDENT\n");}
-		| ident L_SQUARE_BRACKET expression R_SQUARE_BRACKET {printf("var -> IDENT L_SQUARE_BRACKET expression R_SQUARE_BRACKET\n");}
-		;
+var:		IDENT
+		; 
 /*--------------------------------------- */
 %%
 
@@ -198,6 +228,36 @@ var:		ident {printf("var -> IDENT\n");}
 void yyerror(const char* s)
 {
 	printf("Syntax error at line %d: %s",currLine, s);
+}
+
+bool checkIntVar(char*s)
+{
+	for(unsigned i =0; i<varBank.size();i++) {
+		if(varBank[i]==s) {
+			if(varType[i]=="INTEGER") return true;
+			else {
+				printf("Error");
+				return false;
+			}
+		}
+	}
+	printf("Not exist error");
+	return false;
+}
+
+bool checkArrVar(char*s)
+{	
+	for(unsigned i =0; i<varBank.size();i++) {
+		if(varBank[i]==s) {
+			if(varType[i]=="INTEGER") {
+				return false;
+				printf("Error");
+			}
+			else return true;
+		}
+	}
+	printf("Not exist error");
+	return false;
 }
 
 int main(int argc, char **argv) {
