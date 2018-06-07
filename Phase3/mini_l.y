@@ -125,12 +125,10 @@ identifiers:	IDENT {
 			strTemp=ss.str();
 			char* charTemp = new char[strTemp.size()+1];
 			strcpy(charTemp, strTemp.c_str());
+			//if(!checkIntVar(charTemp))
 			varBank.push_back(charTemp);
 			//printf("IDENT-------------varBank: <%s>\n", temp);
 			if(inParam) paramBank.push_back(charTemp);
-			/* for(unsigned x=0;x<varBank.size();x++) {
-				cout<<"varBank["<<x<<"]="<<varBank[x]<<endl;
-			} */
 		}
 		| IDENT COMMA identifiers {
 			stringstream ss;
@@ -180,6 +178,7 @@ identifiers:	IDENT COMMA identifiers {varBank.push_back($1);varType.push_back("I
 /*----------------- Statement ----------------- */
 statements:	statement SEMICOLON statements
 		| statement SEMICOLON
+		| error {yyerrok;yyclearin;cout<<"ERROR TRIGGERED\n";}
 		;
 
 statement: 	IDENT ASSIGN expression
@@ -208,7 +207,7 @@ statement: 	IDENT ASSIGN expression
 			char subbuff[removeNumber+1];
 			memcpy(subbuff, &removeParen[0], removeNumber);
 			subbuff[removeNumber]='\0';
-			ss<< "= "<<subbuff<<", "<<tempBank.back() ;
+			ss<< "= "<<*($1)<<", "<<tempBank.back() ;
 			strTemp=ss.str();
 			char* charTemp = new char[strTemp.size()+1];
 			strcpy(charTemp, strTemp.c_str());
@@ -442,7 +441,7 @@ statement: 	IDENT ASSIGN expression
 			statementBank.push_back(charTemp);
 			tempBank.pop_back();
 		}
-		| error {yyerrok;yyclearin;}
+		| error {yyerrok;yyclearin;cout<<"ERROR TRIGGERED\n";}
 		;
 
 /*vars:		{printf("vars -> epsilon\n");}
@@ -503,6 +502,7 @@ if_statement:	IF bool_exp THEN
 		strcpy(charTemp5, strTemp.c_str());
 		statementBank.push_back(charTemp5);
 	}
+		| error {yyerrok;yyclearin;cout<<"ERROR TRIGGERED if_stat\n";}
 	;
 
 else_if_statement:	if_statement statements ELSE
@@ -523,6 +523,7 @@ else_if_statement:	if_statement statements ELSE
 		strcpy(charTemp2, strTemp.c_str());
 		statementBank.push_back(charTemp2);
 	}
+		| error {yyerrok;yyclearin;cout<<"ERROR TRIGGERED elif_state\n";}
 	;
 
 while_statement: 	while_loop bool_exp BEGINLOOP
@@ -552,6 +553,7 @@ while_statement: 	while_loop bool_exp BEGINLOOP
 		strcpy(charTemp5, strTemp.c_str());
 		statementBank.push_back(charTemp5);
 	}
+		| error {yyerrok;yyclearin;cout<<"ERROR TRIGGERED while\n";}
 	;
 
 while_loop:	WHILE
@@ -591,6 +593,7 @@ while_loop:	WHILE
 		strcpy(charTemp5, strTemp.c_str());
 		statementBank.push_back(charTemp5);
 	}
+		| error {yyerrok;yyclearin;cout<<"ERROR TRIGGERED\n";}
 	;
 
 do_statement:	do_loop statements ENDLOOP
@@ -604,6 +607,7 @@ do_statement:	do_loop statements ENDLOOP
 			strcpy(charTemp, strTemp.c_str());
 			statementBank.push_back(charTemp);
 		}
+		| error {yyerrok;yyclearin;cout<<"ERROR TRIGGERED do_state\n";}
 		;
 
 do_loop:	DO BEGINLOOP
@@ -636,6 +640,7 @@ do_loop:	DO BEGINLOOP
 			strcpy(charTempz, temp2.c_str());
 			statementBank.push_back(charTempz);
 		}
+		| error {yyerrok;yyclearin;cout<<"ERROR TRIGGERED do_loop\n";}
 		;
 
 read_comma:	COMMA IDENT read_comma
@@ -694,10 +699,13 @@ read_comma:	COMMA IDENT read_comma
 			tempBank.pop_back();
 		}
 		|
+		
+		| error {yyerrok;yyclearin;cout<<"ERROR TRIGGERED read_comma\n";}
 		;
 
 comma_loop:
 		| COMMA reduce_term comma_loop
+		| error {yyerrok;yyclearin;cout<<"ERROR TRIGGERED comma_loop\n";}
 		;
 
 reduce_term:	var
@@ -758,6 +766,7 @@ reduce_term:	var
 			tempBank.push_back(charTemp);
 		}
 		| L_PAREN expression R_PAREN
+		| error {yyerrok;yyclearin;cout<<"ERROR TRIGGERED reduce_term\n";}
 		;
 
 /*----------------- Bool Expression ----------------- */
@@ -787,8 +796,8 @@ bool_exp:	relation_and_exp
 			statementBank.push_back(charTemp2);
 
 			tempBank.push_back(charTemp);
-
 		}
+		| error {yyerrok;yyclearin;cout<<"ERROR TRIGGERED bool_exp\n";}
 		;
 /*--------------------------------------------------- */
 
@@ -821,6 +830,7 @@ relation_and_exp: relation_exp
 
 			tempBank.push_back(charTemp);
 		}
+		| error {yyerrok;yyclearin;cout<<"ERROR TRIGGERED relationAndExp\n";}
 		;
 /*----------------------------------------------------------- */
 
@@ -850,6 +860,7 @@ relation_exp: relation_exp2
 
 			tempBank.push_back(charTemp);
 		}
+		| error {yyerrok;yyclearin;cout<<"ERROR TRIGGERED relation_exp\n";}
 		;
 
 relation_exp2:	expression EQ expression
@@ -1053,6 +1064,7 @@ relation_exp2:	expression EQ expression
 			tempBank.push_back(charTemp);
 		}
 		| L_PAREN bool_exp R_PAREN
+		| error {yyerrok;yyclearin;cout<<"ERROR TRIGGERED relationexp2\n";}
 		;
 /*------------------------------------------------------- */
 
@@ -1068,11 +1080,13 @@ relation_exp2:	expression EQ expression
 
 /*----------------- Expression ----------------- */
 expression:	mult_exp expr_branch
+		| error {yyerrok;yyclearin;cout<<"ERROR TRIGGERED expression\n";}
 		;
 
-expr_branch:
+expr_branch: 
 		| ADD mult_exp expr_branch
 		{
+			//cout<<"--------- expr_branchADD"<<endl;
 			stringstream ss;
 			string strTemp;
 			char* charTemp;
@@ -1087,6 +1101,7 @@ expr_branch:
 			tempBank.pop_back();
 			char* temp2=tempBank.back();
 			tempBank.pop_back();
+			
 
 			ss.str("");
 			ss<< "+ "<<charTemp<<", "<<temp2<<", "<<temp;
@@ -1099,6 +1114,7 @@ expr_branch:
 		}
 		| SUB mult_exp expr_branch
 		{
+			//cout<<"--------- expr_branchSUB"<<endl;
 			stringstream ss;
 			string strTemp;
 			char* charTemp;
@@ -1124,16 +1140,23 @@ expr_branch:
 
 			tempBank.push_back(charTemp);
 		}
+		| error {yyerrok;yyclearin;cout<<"ERROR TRIGGERED expr_branch\n";}
 		;
 /*---------------------------------------------- */
 
 /*----------------- Multiplicative Expression ----------------- */
 mult_exp:	term mult_branch
+		|
+		| error {yyerrok;yyclearin;cout<<"ERROR TRIGGERED mult_exp\n";}
 		;
 
-mult_branch:
+mult_branch: {
+			
+			//cout<<"--------- mult_branchMULT"<<endl;
+		}
 		| MULT term mult_branch
 		{
+			//cout<<"--------- mult_branchMULT"<<endl;
 			stringstream ss;
 			string strTemp;
 			char* charTemp;
@@ -1210,6 +1233,7 @@ mult_branch:
 
 			tempBank.push_back(charTemp);
 		}
+		| error {yyerrok;yyclearin;cout<<"ERROR TRIGGERED mult_branch\n";}
 		;
 /*------------------------------------------------------------- */
 
@@ -1283,6 +1307,7 @@ term:		reduce_term
 			tempBank.push_back(charTemp);
 
 		}
+		| error {yyerrok;yyclearin;cout<<"ERROR TRIGGERED term\n";}
 		;
 
 term_paren:	L_PAREN term_expr R_PAREN
@@ -1300,6 +1325,7 @@ term_paren:	L_PAREN term_expr R_PAREN
 			}
 		}
 		| L_PAREN R_PAREN
+		| error {yyerrok;yyclearin;cout<<"ERROR TRIGGERED termParen\n";}
 		;
 
 term_expr:	expression
@@ -1312,6 +1338,8 @@ term_expr:	expression
 			paramVector.push_back(tempBank.back());
 			tempBank.pop_back();
 		}
+		| error {yyerrok;yyclearin;cout<<"ERROR TRIGGERED term\n";}
+		;
 
 /*
 expressions:	expression {printf("expressions -> expression\n");}
@@ -1323,11 +1351,13 @@ expressions:	expression {printf("expressions -> expression\n");}
 /*----------------- Var ----------------- */
 var:		IDENT
 		{
+			//cout<<"------------var$1: "<<$1<<endl;
 			stringstream a;
 			a.str("");
 			a<< *($1) ;
 
 			string var = a.str();;
+			//cout<<"------------var: "<<var<<endl;
 			if(!checkIntVar(var)) ;//exit(1);
 			stringstream ss;
 			string strTemp;
@@ -1350,7 +1380,7 @@ var:		IDENT
 			memcpy(subbuff, &removeParen[0], removeNumber);
 			subbuff[removeNumber]='\0';
 
-			ss<< subbuff ;
+			ss<< *($1) ;
 			strTemp=ss.str();
 			char* charTemp = new char[strTemp.size()+1];
 			strcpy(charTemp, strTemp.c_str());
@@ -1376,6 +1406,7 @@ var:		IDENT
 			strcpy(charTemp, strTemp.c_str());
 			tempBank.push_back(charTemp);
 		}
+		| error {yyerrok;yyclearin;cout<<"ERROR TRIGGERED term\n";}
 		;
 /*--------------------------------------- */
 %%
@@ -1400,17 +1431,19 @@ bool checkIntVar(string s){
 		ss.str("");
 		ss<<varBank[i];
 		varbank=ss.str();
-		/* cout<<"v: "<<varbank<< "| s: "<< passed_s<<endl; */
+		//cout<<"v: "<<varbank<< "| s: "<< passed_s<<endl; 
+		//cout<<endl;
 		if(varbank==passed_s) {
 			ss.str("");
 			ss<<varType[i];
 			vartype=ss.str();
-			/* for(unsigned x=0;x<varBank.size();x++) {
+			/*for(unsigned x=0;x<varBank.size();x++) {
 				cout<<"varBank["<<x<<"]="<<varBank[x]<<endl;
 			}
 			for(unsigned x=0;x<varType.size();x++) {
 				cout<<"varType["<<x<<"]="<<varType[x]<<endl;
-			} */
+			}
+			*/
 			if(vartype=="INTEGER") return true;
 			else {
 				printf("checkIntVar Error");
@@ -1434,10 +1467,18 @@ bool checkArrVar(string s){
 		ss.str("");
 		ss<<varBank[i];
 		varbank=ss.str();
+		
+
 		if(varbank==passed_s) {
 			ss.str("");
 			ss<<varType[i];
 			vartype=ss.str();
+			/*for(unsigned x=0;x<varBank.size();x++) {
+				cout<<"varBank["<<x<<"]="<<varBank[x]<<endl;
+			}
+			for(unsigned x=0;x<varType.size();x++) {
+				cout<<"varType["<<x<<"]="<<varType[x]<<endl;
+			} */
 			if(vartype=="INTEGER") {
 				printf("checkArrVar Error");
 				return false;
