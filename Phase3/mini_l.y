@@ -1,44 +1,51 @@
 %{
-#include <stdio.h>
-#include <stdlib.h>
-#include <iostream>
-#include <string>
-#include <vector>
-#include <sstream>
+
+#define YY_NO_UNPUT
 
 using namespace std;
 
-int yylex(void);
+#include <iostream>
+#include <stdio.h>
+#include <string>
+#include <cstring>
+#include <stdlib.h>
+#include <vector>
+#include <sstream>
+
+int yyparse();
+int yylex();
 void yyerror(const char *s);
 extern int currLine, currPos;
-FILE *yyin;
+
 vector <char*> varBank; //sym_table
 vector <char*> varType; //sym_type
 vector <char*> paramBank; //param_table
 vector <char*> statementBank; //stmnt_vctr
 vector <char*> tempBank; //op
 vector <char*> functionBank; //func_table
-vector <vector<char*>> labelBank; //if_label
-vector <vector<char*>> loopLabelBank; //loop_label
+vector <vector<char*> > labelBank; //if_label
+vector <vector<char*> > loopLabelBank; //loop_label
 vector <char*> inputBank; //read_queue
 vector <char*> paramVector; //param_queue
 int labelCount=0; //label_count
 int tempCount=0; //temp_var_count
-bool checkIntVar(char*); //in_sym_table
-bool checkArrVar(char*); //in_arr_table
-bool checkFunction(char*); //in_func_table
+bool checkIntVar(string); //in_sym_table
+bool checkArrVar(string); //in_arr_table
+bool checkFunction(string); //in_func_table
 
 bool inParam=false;
 %}
 
 %union{
 char* sval;
+int val;
+string * test;
 }
 
 %error-verbose
 %start begin
 %token L_PAREN R_PAREN L_SQUARE_BRACKET R_SQUARE_BRACKET BEGIN_PARAMS END_PARAMS BEGIN_LOCALS END_LOCALS BEGIN_BODY END_BODY IF ENDIF FUNCTION COLON SEMICOLON COMMA INTEGER ARRAY OF THEN ELSE WHILE DO BEGINLOOP ENDLOOP CONTINUE READ WRITE TRUE FALSE RETURN
-%token <sval> NUMBER
+%token <val> NUMBER
 %token <sval> IDENT
 %left  ADD MULT DIV SUB MOD AND OR LT LTE GT GTE EQ NEQ
 %right NOT ASSIGN
@@ -56,7 +63,7 @@ function:	func_name SEMICOLON begin_params declarations end_params BEGIN_LOCALS 
 		{
 			int temp=0;
 			for(unsigned i=0;i<varBank.size();i++) {
-				if(varType=="INTEGER") {
+				if(varType.at(i)=="INTEGER") {
 					printf(". %s\n", varBank[i]);
 				}
 				else {
@@ -66,7 +73,7 @@ function:	func_name SEMICOLON begin_params declarations end_params BEGIN_LOCALS 
 
 
 			while(!paramBank.empty()) {
-				printf("= %s, $%s\n", paramBank.front(), temp++);
+				printf("= %s, $%d\n", paramBank.front(), temp++);
 				paramBank.erase(paramBank.begin());
 			}
 
@@ -82,7 +89,15 @@ function:	func_name SEMICOLON begin_params declarations end_params BEGIN_LOCALS 
 
 func_name:	FUNCTION IDENT
 		{
-			varBank.push_back(*($2));
+			stringstream ss;
+			string strTemp;
+			ss.str("");
+			ss<< *($2) ;
+			strTemp=ss.str();
+			char* charTemp = new char[strTemp.size()+1];
+			strcpy(charTemp, strTemp.c_str());
+			functionBank.push_back(charTemp);
+			//printf("func_name-------------varBank: %s\n", varBank.back());
 			printf("func %s\n", $2);
 		}
 		;
@@ -90,7 +105,7 @@ func_name:	FUNCTION IDENT
 begin_params:	BEGIN_PARAMS {inParam=true;}
 		;
 
-end_params:	END_PARAMS {inParams=false;}
+end_params:	END_PARAMS {inParam=false;}
 		;
 
 declarations:
@@ -99,38 +114,145 @@ declarations:
 /*-------------------------------------------- */
 
 /*----------------- Declaration ----------------- */
+declaration:	identifiers COLON integer
+		;
 
+identifiers:	IDENT {
+			stringstream ss;
+			string strTemp;
+			ss.str("");
+			ss<< *($1) ;
+			strTemp=ss.str();
+			char* charTemp = new char[strTemp.size()+1];
+			strcpy(charTemp, strTemp.c_str());
+			varBank.push_back(charTemp);
+			//printf("IDENT-------------varBank: <%s>\n", temp);
+			if(inParam) paramBank.push_back(charTemp);
+			/* for(unsigned x=0;x<varBank.size();x++) {
+				cout<<"varBank["<<x<<"]="<<varBank[x]<<endl;
+			} */
+		}
+		| IDENT COMMA identifiers {
+			stringstream ss;
+			string strTemp;
+			ss.str("");
+			ss<< *($1) ;
+			strTemp=ss.str();
+			char* charTemp = new char[strTemp.size()+1];
+			strcpy(charTemp, strTemp.c_str());
+			varBank.push_back(charTemp);
+			//printf("IDENTCOMMA-------------varBank: %s\n", varBank.back());
+			varType.push_back("INTEGER");
+		}
+		;
 
-declaration:	identifiers COLON INTEGER {varType.push_back("INTEGER");}
-		| identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER  {varType.push_back(*($5));}
+integer:	INTEGER {
+			varType.push_back("INTEGER");
+		}
+		| ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER
+		{
+			/* cout<<"---------NUMBER IS: "<<$3<<endl; */
+			stringstream ss;
+			string strTemp;
+			ss.str("");
+			ss<< $3 ;
+			strTemp=ss.str();
+			char* charTemp = new char[strTemp.size()+1];
+			strcpy(charTemp, strTemp.c_str());
+			varType.push_back(charTemp);
+		}
+/*------------------------------------------------ */
+
+/*----------------- Declaration ----------------- */
+/*declaration:	identifiers COLON INTEGER {varType.push_back("INTEGER");}
+		| identifiers COLON ARRAY L_SQUARE_BRACKET NUMBER R_SQUARE_BRACKET OF INTEGER  {varType.push_back($5);}
 		| error {yyerrok;yyclearin;}
 		;
 
-identifiers:	IDENT COMMA identifiers {varBank.push_back(*($1));varType.push_back("INTEGER");}
-		| IDENT {varBank.push_back(*($1));if(inParam) paramBank.push_back(*($1));}
-		;
-
+identifiers:	IDENT COMMA identifiers {varBank.push_back($1);varType.push_back("INTEGER");}
+		| IDENT {
+			varBank.push_back($1);
+			if(inParam) paramBank.push_back($1);
+		}
+		;*/
 /*------------------------------------------------ */
 
 /*----------------- Statement ----------------- */
-statements:
-		| statement SEMICOLON statements
+statements:	statement SEMICOLON statements
+		| statement SEMICOLON
 		;
 
 statement: 	IDENT ASSIGN expression
 		{
-			if(!checkIntVar($1)) ;//exit(1);
-			statementBank.push_back("= "+*($1)+", "+tempBank.back());
+			stringstream a;
+			a.str("");
+			a<< *($1) ;
+
+			string var = a.str();;
+			if(!checkIntVar(var)) ;//exit(1);
+			stringstream ss;
+			string strTemp;
+			ss.str("");
+			char* removeParen=$1;
+			int removeNumber;
+			for(unsigned i=0;i<(int)strlen(removeParen);i++) {
+				if(removeParen[i]=='(') {
+					removeNumber=i;
+					break;
+				}
+				else if(!((removeParen[i]>='a'&&removeParen[i]<='z')||(removeParen[i]>='A'&&removeParen[i]<='Z')||removeParen[i]=='_')) {
+					removeNumber=i;
+					break;
+				}
+			}
+			char subbuff[removeNumber+1];
+			memcpy(subbuff, &removeParen[0], removeNumber);
+			subbuff[removeNumber]='\0';
+			ss<< "= "<<subbuff<<", "<<tempBank.back() ;
+			strTemp=ss.str();
+			char* charTemp = new char[strTemp.size()+1];
+			strcpy(charTemp, strTemp.c_str());
+			statementBank.push_back(charTemp);
 			tempBank.pop_back();
 		}
-		| IDENT L_SQUARE_BRACKET expression R_SQUARE_BRACKET
+		| IDENT L_SQUARE_BRACKET expression R_SQUARE_BRACKET ASSIGN expression
 		{
-			if(!checkArrVar($1)) ;//exit(1);
+			stringstream a;
+			a.str("");
+			a<< *($1) ;
+
+			string var = a.str();;
+			if(!checkArrVar(var)) ;//exit(1);
 			char* src = tempBank.back();
 			tempBank.pop_back();
 			char* index = tempBank.back();
 			tempBank.pop_back();
-			statementBank.push_back("[]= "+*($1)+", "+index+", "+src);
+
+			stringstream ss;
+			string strTemp;
+			ss.str("");
+
+			char* removeParen=$1;
+			int removeNumber;
+			for(unsigned i=0;i<(int)strlen(removeParen);i++) {
+				if(removeParen[i]=='(') {
+					removeNumber=i;
+					break;
+				}
+				else if(!((removeParen[i]>='a'&&removeParen[i]<='z')||(removeParen[i]>='A'&&removeParen[i]<='Z')||removeParen[i]=='_')) {
+					removeNumber=i;
+					break;
+				}
+			}
+			char subbuff[removeNumber+1];
+			memcpy(subbuff, &removeParen[0], removeNumber);
+			subbuff[removeNumber]='\0';
+
+			ss<< "[]= "<<subbuff<<", "<<index<<", "<<src ;
+			strTemp=ss.str();
+			char* charTemp = new char[strTemp.size()+1];
+			strcpy(charTemp, strTemp.c_str());
+			statementBank.push_back(charTemp);
 		}
 		| if_statement statements ENDIF
 		{
@@ -166,7 +288,6 @@ statement: 	IDENT ASSIGN expression
 			statementBank.push_back(charTemp);
 
 			ss.str("");
-			char* charTemp2;
 			ss<<": "<<loopLabelBank.back().at(2);
 			strTemp=ss.str();
 			char* charTemp2=new char[strTemp.size()+1];
@@ -190,24 +311,50 @@ statement: 	IDENT ASSIGN expression
 		}
 		| READ IDENT read_comma
 		{
-			if(!checkIntVar(*($2))) ;//exit(0);
+			stringstream a;
+			a.str("");
+			a<< *($2) ;
+
+			string var = a.str();;
+			if(!checkIntVar(var)) ;//exit(1);
 			stringstream ss;
-			string strTemp;
-			char* charTemp;
-			ss<<".< "<<*($2);
-			strTemp=ss.str();
-			charTemp = new char[strTemp.size()+1];
+			ss.str("");
+
+			char* removeParen=$2;
+			int removeNumber;
+			for(unsigned i=0;i<(int)strlen(removeParen);i++) {
+				if(removeParen[i]=='(') {
+					removeNumber=i;
+					break;
+				}
+				else if(!((removeParen[i]>='a'&&removeParen[i]<='z')||(removeParen[i]>='A'&&removeParen[i]<='Z')||removeParen[i]=='_')) {
+					removeNumber=i;
+					break;
+				}
+			}
+			char subbuff[removeNumber+1];
+			memcpy(subbuff, &removeParen[0], removeNumber);
+			subbuff[removeNumber]='\0';
+
+			ss<<".< "<<subbuff;
+			string strTemp=ss.str();
+			char* charTemp = new char[strTemp.size()+1];
 			strcpy(charTemp, strTemp.c_str());
 			statementBank.push_back(charTemp);
 
 			while(!inputBank.empty()) {
-				statementBank.push_back(inputBank.top());
+				statementBank.push_back(inputBank.back());
 				inputBank.pop_back();
 			}
 		}
 		| READ IDENT L_SQUARE_BRACKET expression R_SQUARE_BRACKET read_comma
 		{
-			if(!checkIntVar(*($2))) ;//exit(0);
+			stringstream a;
+			a.str("");
+			a<< *($2) ;
+
+			string var = a.str();;
+			if(!checkIntVar(var)) ;//exit(1);
 
 			stringstream ss;
 			string strTemp;
@@ -237,7 +384,7 @@ statement: 	IDENT ASSIGN expression
 			tempBank.pop_back();
 
 			while(!inputBank.empty()) {
-				statementBank.push_back(inputBank.top());
+				statementBank.push_back(inputBank.back());
 				inputBank.pop_back();
 			}
 		}
@@ -370,7 +517,6 @@ else_if_statement:	if_statement statements ELSE
 		statementBank.push_back(charTemp);
 
 		ss.str("");
-		char* charTemp2;
 		ss<<": "<<labelBank.back().at(1);
 		strTemp=ss.str();
 		char* charTemp2=new char[strTemp.size()+1];
@@ -494,8 +640,12 @@ do_loop:	DO BEGINLOOP
 
 read_comma:	COMMA IDENT read_comma
 		{
-			//char*temp=*($2);
-			if(!checkIntVar(*($2))) ;//exit(0);
+			stringstream a;
+			a.str("");
+			a<< *($2) ;
+
+			string var = a.str();;
+			if(!checkIntVar(var)) ;//exit(1);
 
 			stringstream ss;
 			string strTemp;
@@ -509,8 +659,12 @@ read_comma:	COMMA IDENT read_comma
 		}
 		| COMMA IDENT L_SQUARE_BRACKET expression R_SQUARE_BRACKET read_comma
 		{
-			//char*temp=*($2);
-			if(!checkIntVar(*($2))) ;//exit(0);
+			stringstream a;
+			a.str("");
+			a<< *($2) ;
+
+			string var = a.str();;
+			if(!checkIntVar(var)) ;//exit(1);
 
 			stringstream ss;
 			string strTemp;
@@ -562,7 +716,7 @@ reduce_term:	var
 			if(temp[0]=='[') {
 				ss.str("");
 				char subbuff[4];
-				memcpy(subbuff, &buff[strlen(buff)-3], 3);
+				memcpy(subbuff, &temp[strlen(temp)-3], 3);
 				subbuff[3]='\0';
 				ss<< "=[] "<<charTemp<<", "<< subbuff;
 				strTemp=ss.str();
@@ -571,9 +725,8 @@ reduce_term:	var
 				statementBank.push_back(charTemp2);
 			}
 			else {
-				stringstream ss;
-				string strTemp;
 				ss.str("");
+
 				ss<< "= "<<charTemp<<", "<<tempBank.back();
 				strTemp=ss.str();
 				char* charTemp3 = new char[strTemp.size()+1];
@@ -609,7 +762,7 @@ reduce_term:	var
 
 /*----------------- Bool Expression ----------------- */
 bool_exp:	relation_and_exp
-		| relation_and_exp OR bool_exp
+		| bool_exp OR relation_and_exp
 		{
 			stringstream ss;
 			string strTemp;
@@ -626,14 +779,12 @@ bool_exp:	relation_and_exp
 			char* temp2=tempBank.back();
 			tempBank.pop_back();
 
-			stringstream ss;
-			string strTemp;
 			ss.str("");
 			ss<< "|| "<<charTemp<<", "<<temp2<<", "<<temp;
 			strTemp=ss.str();
-			char* charTemp = new char[strTemp.size()+1];
-			strcpy(charTemp, strTemp.c_str());
-			statementBank.push_back(charTemp);
+			char* charTemp2 = new char[strTemp.size()+1];
+			strcpy(charTemp2, strTemp.c_str());
+			statementBank.push_back(charTemp2);
 
 			tempBank.push_back(charTemp);
 
@@ -643,7 +794,7 @@ bool_exp:	relation_and_exp
 
 /*----------------- Relation And Expression ----------------- */
 relation_and_exp: relation_exp
- 		| relation_exp AND relation_and_exp
+ 		| relation_and_exp AND relation_exp
 		{
 			stringstream ss;
 			string strTemp;
@@ -660,14 +811,13 @@ relation_and_exp: relation_exp
 			char* temp2=tempBank.back();
 			tempBank.pop_back();
 
-			stringstream ss;
-			string strTemp;
+
 			ss.str("");
 			ss<< "&& "<<charTemp<<", "<<temp2<<", "<<temp;
 			strTemp=ss.str();
-			char* charTemp = new char[strTemp.size()+1];
-			strcpy(charTemp, strTemp.c_str());
-			statementBank.push_back(charTemp);
+			char* charTemp2 = new char[strTemp.size()+1];
+			strcpy(charTemp2, strTemp.c_str());
+			statementBank.push_back(charTemp2);
 
 			tempBank.push_back(charTemp);
 		}
@@ -675,7 +825,8 @@ relation_and_exp: relation_exp
 /*----------------------------------------------------------- */
 
 /*----------------- Relation Expression ----------------- */
-relation_exp: 	NOT relation_exp2
+relation_exp: relation_exp2
+		| NOT relation_exp2
 		{
 			stringstream ss;
 			string strTemp;
@@ -690,18 +841,15 @@ relation_exp: 	NOT relation_exp2
 			char* temp=tempBank.back();
 			tempBank.pop_back();
 
-			stringstream ss;
-			string strTemp;
 			ss.str("");
 			ss<< "! "<<charTemp<<", "<<temp;
 			strTemp=ss.str();
-			char* charTemp = new char[strTemp.size()+1];
-			strcpy(charTemp, strTemp.c_str());
-			statementBank.push_back(charTemp);
+			char* charTemp2 = new char[strTemp.size()+1];
+			strcpy(charTemp2, strTemp.c_str());
+			statementBank.push_back(charTemp2);
 
 			tempBank.push_back(charTemp);
 		}
-		| relation_exp2
 		;
 
 relation_exp2:	expression EQ expression
@@ -721,14 +869,12 @@ relation_exp2:	expression EQ expression
 			char* temp2=tempBank.back();
 			tempBank.pop_back();
 
-			stringstream ss;
-			string strTemp;
 			ss.str("");
 			ss<< "== "<<charTemp<<", "<<temp2<<", "<<temp;
 			strTemp=ss.str();
-			char* charTemp = new char[strTemp.size()+1];
-			strcpy(charTemp, strTemp.c_str());
-			statementBank.push_back(charTemp);
+			char* charTemp2 = new char[strTemp.size()+1];
+			strcpy(charTemp2, strTemp.c_str());
+			statementBank.push_back(charTemp2);
 
 			tempBank.push_back(charTemp);
 		}
@@ -749,14 +895,12 @@ relation_exp2:	expression EQ expression
 			char* temp2=tempBank.back();
 			tempBank.pop_back();
 
-			stringstream ss;
-			string strTemp;
 			ss.str("");
 			ss<< "!= "<<charTemp<<", "<<temp2<<", "<<temp;
 			strTemp=ss.str();
-			char* charTemp = new char[strTemp.size()+1];
-			strcpy(charTemp, strTemp.c_str());
-			statementBank.push_back(charTemp);
+			char* charTemp2 = new char[strTemp.size()+1];
+			strcpy(charTemp2, strTemp.c_str());
+			statementBank.push_back(charTemp2);
 
 			tempBank.push_back(charTemp);
 		}
@@ -777,14 +921,12 @@ relation_exp2:	expression EQ expression
 			char* temp2=tempBank.back();
 			tempBank.pop_back();
 
-			stringstream ss;
-			string strTemp;
 			ss.str("");
 			ss<< "< "<<charTemp<<", "<<temp2<<", "<<temp;
 			strTemp=ss.str();
-			char* charTemp = new char[strTemp.size()+1];
-			strcpy(charTemp, strTemp.c_str());
-			statementBank.push_back(charTemp);
+			char* charTemp2 = new char[strTemp.size()+1];
+			strcpy(charTemp2, strTemp.c_str());
+			statementBank.push_back(charTemp2);
 
 			tempBank.push_back(charTemp);
 		}
@@ -805,14 +947,12 @@ relation_exp2:	expression EQ expression
 			char* temp2=tempBank.back();
 			tempBank.pop_back();
 
-			stringstream ss;
-			string strTemp;
 			ss.str("");
 			ss<< "> "<<charTemp<<", "<<temp2<<", "<<temp;
 			strTemp=ss.str();
-			char* charTemp = new char[strTemp.size()+1];
-			strcpy(charTemp, strTemp.c_str());
-			statementBank.push_back(charTemp);
+			char* charTemp2 = new char[strTemp.size()+1];
+			strcpy(charTemp2, strTemp.c_str());
+			statementBank.push_back(charTemp2);
 
 			tempBank.push_back(charTemp);
 		}
@@ -833,14 +973,12 @@ relation_exp2:	expression EQ expression
 			char* temp2=tempBank.back();
 			tempBank.pop_back();
 
-			stringstream ss;
-			string strTemp;
 			ss.str("");
 			ss<< "<= "<<charTemp<<", "<<temp2<<", "<<temp;
 			strTemp=ss.str();
-			char* charTemp = new char[strTemp.size()+1];
-			strcpy(charTemp, strTemp.c_str());
-			statementBank.push_back(charTemp);
+			char* charTemp2 = new char[strTemp.size()+1];
+			strcpy(charTemp2, strTemp.c_str());
+			statementBank.push_back(charTemp2);
 
 			tempBank.push_back(charTemp);
 		}
@@ -861,14 +999,12 @@ relation_exp2:	expression EQ expression
 			char* temp2=tempBank.back();
 			tempBank.pop_back();
 
-			stringstream ss;
-			string strTemp;
 			ss.str("");
 			ss<< ">= "<<charTemp<<", "<<temp2<<", "<<temp;
 			strTemp=ss.str();
-			char* charTemp = new char[strTemp.size()+1];
-			strcpy(charTemp, strTemp.c_str());
-			statementBank.push_back(charTemp);
+			char* charTemp2 = new char[strTemp.size()+1];
+			strcpy(charTemp2, strTemp.c_str());
+			statementBank.push_back(charTemp2);
 
 			tempBank.push_back(charTemp);
 		}
@@ -885,14 +1021,12 @@ relation_exp2:	expression EQ expression
 			varBank.push_back(charTemp);
 			varType.push_back("INTEGER");
 
-			stringstream ss;
-			string strTemp;
 			ss.str("");
-			ss<< ">= "<<charTemp<<", 1";
+			ss<< "= "<<charTemp<<", 1";
 			strTemp=ss.str();
-			char* charTemp = new char[strTemp.size()+1];
-			strcpy(charTemp, strTemp.c_str());
-			statementBank.push_back(charTemp);
+			char* charTemp2 = new char[strTemp.size()+1];
+			strcpy(charTemp2, strTemp.c_str());
+			statementBank.push_back(charTemp2);
 
 			tempBank.push_back(charTemp);
 		}
@@ -909,14 +1043,12 @@ relation_exp2:	expression EQ expression
 			varBank.push_back(charTemp);
 			varType.push_back("INTEGER");
 
-			stringstream ss;
-			string strTemp;
 			ss.str("");
-			ss<< ">= "<<charTemp<<", 0";
+			ss<< "= "<<charTemp<<", 0";
 			strTemp=ss.str();
-			char* charTemp = new char[strTemp.size()+1];
-			strcpy(charTemp, strTemp.c_str());
-			statementBank.push_back(charTemp);
+			char* charTemp2 = new char[strTemp.size()+1];
+			strcpy(charTemp2, strTemp.c_str());
+			statementBank.push_back(charTemp2);
 
 			tempBank.push_back(charTemp);
 		}
@@ -956,14 +1088,12 @@ expr_branch:
 			char* temp2=tempBank.back();
 			tempBank.pop_back();
 
-			stringstream ss;
-			string strTemp;
 			ss.str("");
 			ss<< "+ "<<charTemp<<", "<<temp2<<", "<<temp;
 			strTemp=ss.str();
-			char* charTemp = new char[strTemp.size()+1];
-			strcpy(charTemp, strTemp.c_str());
-			statementBank.push_back(charTemp);
+			char* charTemp2 = new char[strTemp.size()+1];
+			strcpy(charTemp2, strTemp.c_str());
+			statementBank.push_back(charTemp2);
 
 			tempBank.push_back(charTemp);
 		}
@@ -984,14 +1114,13 @@ expr_branch:
 			char* temp2=tempBank.back();
 			tempBank.pop_back();
 
-			stringstream ss;
-			string strTemp;
+
 			ss.str("");
 			ss<< "- "<<charTemp<<", "<<temp2<<", "<<temp;
 			strTemp=ss.str();
-			char* charTemp = new char[strTemp.size()+1];
-			strcpy(charTemp, strTemp.c_str());
-			statementBank.push_back(charTemp);
+			char* charTemp2 = new char[strTemp.size()+1];
+			strcpy(charTemp2, strTemp.c_str());
+			statementBank.push_back(charTemp2);
 
 			tempBank.push_back(charTemp);
 		}
@@ -1020,14 +1149,12 @@ mult_branch:
 			char* temp2=tempBank.back();
 			tempBank.pop_back();
 
-			stringstream ss;
-			string strTemp;
 			ss.str("");
 			ss<< "* "<<charTemp<<", "<<temp2<<", "<<temp;
 			strTemp=ss.str();
-			char* charTemp = new char[strTemp.size()+1];
-			strcpy(charTemp, strTemp.c_str());
-			statementBank.push_back(charTemp);
+			char* charTemp2 = new char[strTemp.size()+1];
+			strcpy(charTemp2, strTemp.c_str());
+			statementBank.push_back(charTemp2);
 
 			tempBank.push_back(charTemp);
 		}
@@ -1048,14 +1175,12 @@ mult_branch:
 			char* temp2=tempBank.back();
 			tempBank.pop_back();
 
-			stringstream ss;
-			string strTemp;
 			ss.str("");
 			ss<< "/ "<<charTemp<<", "<<temp2<<", "<<temp;
 			strTemp=ss.str();
-			char* charTemp = new char[strTemp.size()+1];
-			strcpy(charTemp, strTemp.c_str());
-			statementBank.push_back(charTemp);
+			char* charTemp2 = new char[strTemp.size()+1];
+			strcpy(charTemp2, strTemp.c_str());
+			statementBank.push_back(charTemp2);
 
 			tempBank.push_back(charTemp);
 		}
@@ -1076,14 +1201,12 @@ mult_branch:
 			char* temp2=tempBank.back();
 			tempBank.pop_back();
 
-			stringstream ss;
-			string strTemp;
 			ss.str("");
 			ss<< "% "<<charTemp<<", "<<temp2<<", "<<temp;
 			strTemp=ss.str();
-			char* charTemp = new char[strTemp.size()+1];
-			strcpy(charTemp, strTemp.c_str());
-			statementBank.push_back(charTemp);
+			char* charTemp2 = new char[strTemp.size()+1];
+			strcpy(charTemp2, strTemp.c_str());
+			statementBank.push_back(charTemp2);
 
 			tempBank.push_back(charTemp);
 		}
@@ -1105,14 +1228,12 @@ term:		reduce_term
 			varBank.push_back(charTemp);
 			varType.push_back("INTEGER");
 
-			stringstream ss;
-			string strTemp;
 			ss.str("");
 			ss<< "- "<<charTemp<<", 0, "<<tempBank.back();
 			strTemp=ss.str();
-			char* charTemp = new char[strTemp.size()+1];
-			strcpy(charTemp, strTemp.c_str());
-			statementBank.push_back(charTemp);
+			char* charTemp2 = new char[strTemp.size()+1];
+			strcpy(charTemp2, strTemp.c_str());
+			statementBank.push_back(charTemp2);
 
 			tempBank.pop_back();
 			tempBank.push_back(charTemp);
@@ -1130,9 +1251,31 @@ term:		reduce_term
 			varBank.push_back(charTemp);
 			varType.push_back("INTEGER");
 
-			if(!checkFunction(*($1))); //exit(1);
+			stringstream a;
+			a.str("");
+			a<< *($1) ;
+
+			string var = a.str();;
+			if(!checkFunction(var)) ;//exit(1);
 			ss.str("");
-			ss<< "call "<<*($1)<<", "<<charTemp;
+			char* removeParen=$1;
+			int removeNumber;
+			for(unsigned i=0;i<(int)strlen(removeParen);i++) {
+				if(removeParen[i]=='(') {
+					removeNumber=i;
+					break;
+				}
+				else if(!((removeParen[i]>='a'&&removeParen[i]<='z')||(removeParen[i]>='A'&&removeParen[i]<='Z')||removeParen[i]=='_')) {
+					removeNumber=i;
+					break;
+				}
+			}
+			char subbuff[removeNumber+1];
+			memcpy(subbuff, &removeParen[0], removeNumber);
+			subbuff[removeNumber]='\0';
+			//cout<<subbuff<<endl;
+
+			ss<< "call "<<subbuff<<", "<<charTemp;
 			strTemp=ss.str();
 			char* charTemp2 = new char[strTemp.size()+1];
 			strcpy(charTemp2, strTemp.c_str());
@@ -1170,23 +1313,59 @@ term_expr:	expression
 			tempBank.pop_back();
 		}
 
+/*
 expressions:	expression {printf("expressions -> expression\n");}
 		| expression COMMA expressions {printf("expressions -> expression COMMA expressions\n");}
-		;
+		; */
 /*---------------------------------------- */
 
 
 /*----------------- Var ----------------- */
 var:		IDENT
 		{
-			if(!checkIntVar(*($1))) ; //exit(1);
-			tempBank.push_back(*($1));
+			stringstream a;
+			a.str("");
+			a<< *($1) ;
+
+			string var = a.str();;
+			if(!checkIntVar(var)) ;//exit(1);
+			stringstream ss;
+			string strTemp;
+			ss.str("");
+
+
+			char* removeParen=$1;
+			int removeNumber;
+			for(unsigned i=0;i<(int)strlen(removeParen);i++) {
+				if(removeParen[i]=='(') {
+					removeNumber=i;
+					break;
+				}
+				else if(!((removeParen[i]>='a'&&removeParen[i]<='z')||(removeParen[i]>='A'&&removeParen[i]<='Z')||removeParen[i]=='_')) {
+					removeNumber=i;
+					break;
+				}
+			}
+			char subbuff[removeNumber+1];
+			memcpy(subbuff, &removeParen[0], removeNumber);
+			subbuff[removeNumber]='\0';
+
+			ss<< subbuff ;
+			strTemp=ss.str();
+			char* charTemp = new char[strTemp.size()+1];
+			strcpy(charTemp, strTemp.c_str());
+			tempBank.push_back(charTemp);
 		}
 		| IDENT L_SQUARE_BRACKET expression R_SQUARE_BRACKET
 		{
 			char* temp = tempBank.back();
 			tempBank.pop_back();
-			if(!checkArrVar(*($1))) ; //exit(1);
+			stringstream a;
+			a.str("");
+			a<< *($1) ;
+
+			string var = a.str();;
+			if(!checkArrVar(var)) ;//exit(1);
 
 			stringstream ss;
 			string strTemp;
@@ -1207,49 +1386,94 @@ void yyerror(const char* s) {
 	printf("Syntax error at line %d: %s",currLine, s);
 }
 
-bool checkIntVar(char*s){
+bool checkIntVar(string s){
+	extern int currLine, currPos;
+	string varbank,vartype, passed_s;
+	stringstream ss;
+	ss.str("");
+	ss<< s ;
+	/* cout<<"passed_s: "<<passed_s<<endl; */
+	passed_s=ss.str();
+	/* cout<<"passed_s: "<<passed_s<<endl; */
+
 	for(unsigned i =0; i<varBank.size();i++) {
-		if(varBank[i]==s) {
-			if(varType[i]=="INTEGER") return true;
+		ss.str("");
+		ss<<varBank[i];
+		varbank=ss.str();
+		/* cout<<"v: "<<varbank<< "| s: "<< passed_s<<endl; */
+		if(varbank==passed_s) {
+			ss.str("");
+			ss<<varType[i];
+			vartype=ss.str();
+			/* for(unsigned x=0;x<varBank.size();x++) {
+				cout<<"varBank["<<x<<"]="<<varBank[x]<<endl;
+			}
+			for(unsigned x=0;x<varType.size();x++) {
+				cout<<"varType["<<x<<"]="<<varType[x]<<endl;
+			} */
+			if(vartype=="INTEGER") return true;
 			else {
-				printf("Error");
+				printf("checkIntVar Error");
 				return false;
 			}
 		}
 	}
-	printf("Not exist error");
+	printf("checkIntVar/Semantic error - Not exist error at line %s column %s",currLine,currPos);
 	return false;
 }
 
-bool checkArrVar(char*s){
+bool checkArrVar(string s){
+	extern int currLine, currPos;
+	string varbank,vartype, passed_s;
+	stringstream ss;
+	ss.str("");
+	ss<< s ;
+	passed_s=ss.str();
+
 	for(unsigned i =0; i<varBank.size();i++) {
-		if(varBank[i]==s) {
-			if(varType[i]=="INTEGER") {
+		ss.str("");
+		ss<<varBank[i];
+		varbank=ss.str();
+		if(varbank==passed_s) {
+			ss.str("");
+			ss<<varType[i];
+			vartype=ss.str();
+			if(vartype=="INTEGER") {
+				printf("checkArrVar Error");
 				return false;
-				printf("Error");
 			}
 			else return true;
 		}
 	}
-	printf("Not exist error");
+	printf("checkArrVar/Semantic error - Not exist error at line %s column %s",currLine,currPos);
 	return false;
 }
 
-bool checkFunction(char*s) {
+bool checkFunction(string s) {
+	extern int currLine, currPos;
+	string funcbank, passed_s;
+	stringstream ss;
+	ss.str("");
+	ss<< s ;
+	passed_s=ss.str();
 	for(unsigned i =0; i<functionBank.size();i++) {
-		if(functionBank[i]==s) return true;
+		ss.str("");
+		ss<<functionBank[i];
+		funcbank=ss.str();
+		if(funcbank==passed_s) return true;
 	}
-	printf("Not exist error");
+	printf("checkFunction/Semantic error - Not exist error at line %s column %s",currLine,currPos);
 	return false;
 }
 
-int main(int argc, char **argv) {
-   if (argc > 1) {
-      yyin = fopen(argv[1], "r");
-      if (yyin == NULL){
-         printf("syntax: %s filename\n", argv[0]);
-      }//end if
-   }//end if
-   yyparse(); // Calls yylex() for tokens.
-   return 0;
+int main(int a, char **b)
+{
+	if ((a > 1) && (freopen(b[1], "r", stdin) == NULL))
+	{
+		cerr << b[0] << ", file " << b[1] << " can't be open"<<endl;
+		exit( 1 );
+	}
+
+	yyparse();
+	return 0;
 }

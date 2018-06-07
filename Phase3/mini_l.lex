@@ -1,9 +1,21 @@
 %{
-#include <stdio.h>
-#include <stdlib.h>
+#define YY_NO_UNPUT
 
-int yylex(void);
+using namespace std;
+
+#include <iostream>
+#include <stdio.h>
+#include <string>
+#include <cstring>
+#include <stdlib.h>
+#include <vector>
+#include <sstream>
+
 #include "y.tab.h"
+//#include <stdio.h>
+//#include <stdlib.h>
+
+//int yylex();
 int yyerror(char *s);
 %}
 
@@ -59,7 +71,7 @@ ID	[a-zA-Z_0-9]+
 "true"			{currPos += yyleng; return TRUE;}
 "false"			{currPos += yyleng; return FALSE;}
 "return"		{currPos += yyleng; return RETURN;}
-{DIGIT} 		{currPos += yyleng; yylval.sval=yytext; return NUMBER;}
+{DIGIT} 		{currPos += yyleng; yylval.val=atoi(yytext); return NUMBER;}
 ({DIGIT}|_+){ID}	{printf("Error at line %d, column %d: identifier \"%s\" must begin with letter\n", currLine, currPos, yytext); }
 {ID}_+			{printf("Error at line %d, column %d: identifier \"%s\" cannot end with underscore\n", currLine, currPos, yytext); }
 {ID}			{currPos += yyleng; yylval.sval=yytext; return IDENT;}
